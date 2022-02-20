@@ -1,0 +1,14 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Extract every trxn that ended with sell",
+            "type": "shell",
+            "command": "node",
+            "args": ["index.js", "input\\myInputFile.csv", "output\\myOutputFile.csv"],
+            "problemMatcher": []
+        }
+    ]
+}
