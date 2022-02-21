@@ -1,16 +1,22 @@
+const yargs = require('yargs/yargs')
+const { hideBin } = require('yargs/helpers')
+const argv = yargs(hideBin(process.argv)).argv
+
 const csvToJson = require('convert-csv-to-json');
 const _ = require('lodash');
 const jsonToCsv = require('json-csv')
 const fs = require('fs');
 const firstline = require('firstline');
 
-const fileInputName = process.argv[2] || 'input\\myInputFile.csv';
-const fileOutputName = process.argv[3] || 'output\\myOutputFile.csv';
-const dateFrom = Date.parse(process.argv[4]) || Date.parse('1980-01-01 00:00:00')
-const dateTo = Date.parse(process.argv[5]) || Date.parse('2050-01-01 00:00:00')
+const fileInputName = argv.input || 'input\\myInputFile.csv';
+const fileOutputName = argv.output || 'output\\myOutputFile.csv';
+const dateFrom = Date.parse(argv.from) || Date.parse('1980-01-01 00:00:00')
+const dateTo = Date.parse(argv.to) || Date.parse('2050-01-01 00:00:00')
 
 // Remove (, ), /, . and empty char
 const sanitize = (str) => str.replace(/[\(\)\/. ]/g, '')
+
+const isDateInRange = (date) => ((Date.parse(date) >= dateFrom) && (Date.parse(date) <= dateTo))
 
 async function extract() {
 
@@ -27,28 +33,32 @@ async function extract() {
     })
     //  console.log(jsonSane)
 
-    // Extract different shares tickers that were sold
+    // Extract all different shares tickers that were sold in date range
     const tickerArray = _.uniq(
-        _.filter(jsonSane, { Action: 'Market sell' }).map(o => o.Ticker)
+        jsonSane.filter(tx => tx.Action == 'Market sell' && isDateInRange(tx.Time))
+        .map(tx => tx.Ticker)
     )
     // console.log(tickerArray)
 
-    // Get only trades by tickers in tickerArray
-    const filteredJson = jsonSane.filter(o => tickerArray.includes(o.Ticker))
+    // Get all transactions by tickers in tickerArray
+    const filteredJson1 = jsonSane.filter(o => tickerArray.includes(o.Ticker))
     // console.log(filteredJson)
 
+    const filteredJson = _.sortBy(filteredJson1, tx => Date.parse(tx.Time))
     // Create a map of tickers with arrays of trx IDs to be removed:
     // - open transactions (buys that don't have sell afterwards)
     // - closed transactions not in range
     let toRemoveTxsMap = {}
     for (const tx of filteredJson) {
-        if (!toRemoveTxsMap[tx.Ticker]) toRemoveTxsMap[tx.Ticker] = []
+        if (!toRemoveTxsMap[tx.Ticker]) {
+            toRemoveTxsMap[tx.Ticker] = []
+        }
         if (tx.Action == 'Market buy') {
             toRemoveTxsMap[tx.Ticker].push(tx.ID)
         }
         // Clear array if sell and in range
-        if ((tx.Action == 'Market sell')) {
-            if ((Date.parse(tx.Time) >= dateFrom) && (Date.parse(tx.Time) <= dateTo)) {
+        if (tx.Action == 'Market sell') {
+            if (isDateInRange(tx.Time)) {
                 toRemoveTxsMap[tx.Ticker] = []
             } else {
                 toRemoveTxsMap[tx.Ticker].push(tx.ID)
@@ -57,7 +67,6 @@ async function extract() {
     }
     // console.log(toRemoveTxsMap)
 
-    // const openTxs = _.flatten(Object.values(openTxsMap))
     const toRemoveTxs = Object.values(toRemoveTxsMap).flat()
     // console.log(openTxs)
 

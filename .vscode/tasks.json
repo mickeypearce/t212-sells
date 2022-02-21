@@ -7,7 +7,15 @@
             "label": "Extract every trxn that ended with sell",
             "type": "shell",
             "command": "node",
-            "args": ["index.js", "input\\myInputFile.csv", "output\\myOutputFile.csv", "2021-01-01"],
+            "args": [
+                "index.js",
+                "--input",
+                "input\\myInputFile.csv",
+                "--output",
+                "output\\myOutputFile.csv",
+                "--from",
+                "2021-01-01"
+            ],
             "problemMatcher": []
         }
     ]
