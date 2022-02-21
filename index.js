@@ -3,7 +3,7 @@ const { hideBin } = require('yargs/helpers')
 const argv = yargs(hideBin(process.argv)).argv
 
 const csvToJson = require('convert-csv-to-json');
-const _ = require('lodash');
+const fp = require('lodash/fp');
 const jsonToCsv = require('json-csv')
 const fs = require('fs');
 const firstline = require('firstline');
@@ -26,25 +26,28 @@ async function extract() {
     // Clean property names as they cannot contain strange chars
     const jsonSane = json.map(o => {
         let newo = {}
-        _.forEach(o, (value, key) =>
+        for (const [key, value] of Object.entries(o)) {
             newo[sanitize(key)] = value
-        )
+        }
         return newo
     })
     //  console.log(jsonSane)
 
     // Extract all different shares tickers that were sold in date range
-    const tickerArray = _.uniq(
-        jsonSane.filter(tx => tx.Action == 'Market sell' && isDateInRange(tx.Time))
-        .map(tx => tx.Ticker)
-    )
+    const tickerArray = fp.pipe(
+        fp.filter(tx => tx.Action == 'Market sell' && isDateInRange(tx.Time)),
+        fp.map(tx => tx.Ticker),
+        fp.uniq
+    )(jsonSane)
     // console.log(tickerArray)
 
-    // Get all transactions by tickers in tickerArray
-    const filteredJson1 = jsonSane.filter(o => tickerArray.includes(o.Ticker))
+    // Get all transactions by Tickers in tickerArray and sort by Time
+    const filteredJson = fp.pipe(
+        fp.filter(tx => tickerArray.includes(tx.Ticker)),
+        fp.sortBy(tx => Date.parse(tx.Time))
+    )(jsonSane)
     // console.log(filteredJson)
 
-    const filteredJson = _.sortBy(filteredJson1, tx => Date.parse(tx.Time))
     // Create a map of tickers with arrays of trx IDs to be removed:
     // - open transactions (buys that don't have sell afterwards)
     // - closed transactions not in range

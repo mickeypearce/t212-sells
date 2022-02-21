@@ -14,7 +14,9 @@
                 "--output",
                 "output\\myOutputFile.csv",
                 "--from",
-                "2021-01-01"
+                "2021-01-01",
+                "--to",
+                "2021-12-31"
             ],
             "problemMatcher": []
         }
